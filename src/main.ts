@@ -42,12 +42,14 @@ function randomRange(max: number) {
 }
 
 const spread = Math.cbrt(n) * 2;
+const meshArray: Array<THREE.Mesh> = new Array();
 
 for (let i = 0; i < n; i++) {
   const cube = new THREE.Mesh(geometry, material);
   cube.position.x = randomRange(spread);
   cube.position.y = randomRange(spread);
   cube.position.z = randomRange(spread);
+  meshArray.push(cube);
   scene.add(cube);
 }
 
@@ -65,7 +67,23 @@ const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
 directionalLight.position.set(3, 3, 5);
 scene.add(directionalLight);
 
-renderer.setAnimationLoop(() => {
+const timer = new THREE.Timer();
+
+renderer.setAnimationLoop((time) => {
+  timer.update(time);
+  const deltaSeconds = Math.max(0, timer.getDelta());
+
+  // Random walk: step size scales with sqrt(dt), not dt. Calibrated to 5 per frame at 60 fps.
+  const maxStep = Math.sqrt(deltaSeconds * 0.5);
+
+  for (let i = 0; i < meshArray.length; i++) {
+    meshArray[i].position.x += randomRange(maxStep);
+    meshArray[i].position.y += randomRange(maxStep);
+
+    const rotationStep = 0.25;
+    meshArray[i].rotation.x += randomRange(rotationStep);
+    meshArray[i].rotation.y += randomRange(rotationStep);
+  }
   renderer.render(scene, camera);
 });
 
