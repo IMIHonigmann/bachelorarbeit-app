@@ -69,7 +69,22 @@ scene.add(directionalLight);
 
 const timer = new THREE.Timer();
 
+const WARMUP = 120;
+const SAMPLES = 600;
+const frameMs = new Float64Array(SAMPLES);
+const cpuMs = new Float64Array(SAMPLES);
+let frame = 0;
+
+function summarize(values: Float64Array) {
+  const sorted = values.slice().sort();
+  const at = (q: number) => sorted[Math.floor(q * (sorted.length - 1))];
+  const mean = sorted.reduce((a, b) => a + b, 0) / sorted.length;
+
+  return { mean, p50: at(0.5), p95: at(0.95), p99: at(0.99) };
+}
+
 renderer.setAnimationLoop((time) => {
+  const cpuStart = performance.now();
   timer.update(time);
   const deltaSeconds = Math.max(0, timer.getDelta());
 
@@ -85,6 +100,19 @@ renderer.setAnimationLoop((time) => {
     meshArray[i].rotation.y += randomRange(rotationStep);
   }
   renderer.render(scene, camera);
+
+  // measuring shenanigans
+  const cpuEnd = performance.now();
+
+  if (frame >= WARMUP && frame < WARMUP + SAMPLES) {
+    frameMs[frame - WARMUP] = deltaSeconds * 1000;
+    cpuMs[frame - WARMUP] = cpuEnd - cpuStart;
+  }
+  frame++;
+
+  if (frame === WARMUP + SAMPLES) {
+    console.log({ n, frame: summarize(frameMs), cpu: summarize(cpuMs) });
+  }
 });
 
 window.addEventListener("resize", () => {
