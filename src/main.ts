@@ -28,6 +28,10 @@ if (n < 1) {
     `Parameter "${nParam}" is less than 1 or is a null accidentally converted to 0`,
   );
 }
+if (!Number.isInteger(n)) {
+  throw new Error(`Parameter "${nParam}" is not a whole number`);
+}
+
 console.log(nParam);
 
 const geometry = new THREE.BoxGeometry(1, 1, 1);
@@ -88,7 +92,6 @@ renderer.setAnimationLoop((time) => {
   timer.update(time);
   const deltaSeconds = Math.max(0, timer.getDelta());
 
-  // Random walk: step size scales with sqrt(dt), not dt. Calibrated to 5 per frame at 60 fps.
   const maxStep = Math.sqrt(deltaSeconds * 0.5);
 
   for (let i = 0; i < meshArray.length; i++) {
@@ -111,7 +114,12 @@ renderer.setAnimationLoop((time) => {
   frame++;
 
   if (frame === WARMUP + SAMPLES) {
-    console.log({ n, frame: summarize(frameMs), cpu: summarize(cpuMs) });
+    console.log({
+      n,
+      frame: summarize(frameMs),
+      cpu: summarize(cpuMs),
+      drawCalls: renderer.info.render.calls,
+    });
   }
 });
 
