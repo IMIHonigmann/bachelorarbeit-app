@@ -21,6 +21,13 @@ async function getRenderer(arm: "A" | "B" | "C") {
     );
   }
 
+  const adapter = await navigator.gpu.requestAdapter();
+  console.log(
+    adapter?.info.vendor,
+    adapter?.info.architecture,
+    adapter?.info.isFallbackAdapter,
+  );
+
   return renderer;
 }
 
