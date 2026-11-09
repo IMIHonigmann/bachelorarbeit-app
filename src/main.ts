@@ -18,7 +18,7 @@ const camera = new THREE.PerspectiveCamera(
 );
 
 const params = new URLSearchParams(window.location.search);
-const nParam = params.get("n");
+const nParam = params.get("n") ?? 1000;
 const n = Number(nParam);
 if (Number.isNaN(n)) {
   throw new Error(`Parameter "${nParam}" is not a number`);
@@ -53,6 +53,9 @@ for (let i = 0; i < n; i++) {
   cube.position.x = randomRange(spread);
   cube.position.y = randomRange(spread);
   cube.position.z = randomRange(spread);
+  cube.rotation.x = randomRange(spread);
+  cube.rotation.y = randomRange(spread);
+  cube.rotation.z = randomRange(spread);
   meshArray.push(cube);
   scene.add(cube);
 }
@@ -92,15 +95,10 @@ renderer.setAnimationLoop((time) => {
   timer.update(time);
   const deltaSeconds = Math.max(0, timer.getDelta());
 
-  const maxStep = Math.sqrt(deltaSeconds * 0.5);
-
   for (let i = 0; i < meshArray.length; i++) {
-    meshArray[i].position.x += randomRange(maxStep);
-    meshArray[i].position.y += randomRange(maxStep);
-
-    const rotationStep = 0.25;
-    meshArray[i].rotation.x += randomRange(rotationStep);
-    meshArray[i].rotation.y += randomRange(rotationStep);
+    const rotationStep = 0.01;
+    meshArray[i].rotation.x += rotationStep;
+    meshArray[i].rotation.y += rotationStep;
   }
   renderer.render(scene, camera);
 
