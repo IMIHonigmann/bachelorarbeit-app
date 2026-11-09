@@ -1,5 +1,28 @@
+import type { Mesh } from "three";
 import "./style.css";
-import * as THREE from "three";
+
+const params = new URLSearchParams(window.location.search);
+const nParam = params.get("n") ?? 1000;
+const n = Number(nParam);
+if (Number.isNaN(n)) {
+  throw new Error(`Parameter "${nParam}" is not a number`);
+}
+if (n < 1) {
+  throw new Error(
+    `Parameter "${nParam}" is less than 1 or is a null accidentally converted to 0`,
+  );
+}
+if (!Number.isInteger(n)) {
+  throw new Error(`Parameter "${nParam}" is not a whole number`);
+}
+
+const arm = params.get("arm") ?? "C";
+if (arm !== "A" && arm !== "B" && arm !== "C") {
+  throw new Error(`${arm} is not a valid arm`);
+}
+
+const { THREE, getRenderer } =
+  arm == "A" ? await import("./arms/classic") : await import("./arms/wgpu");
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -17,23 +40,6 @@ const camera = new THREE.PerspectiveCamera(
   1000,
 );
 
-const params = new URLSearchParams(window.location.search);
-const nParam = params.get("n") ?? 1000;
-const n = Number(nParam);
-if (Number.isNaN(n)) {
-  throw new Error(`Parameter "${nParam}" is not a number`);
-}
-if (n < 1) {
-  throw new Error(
-    `Parameter "${nParam}" is less than 1 or is a null accidentally converted to 0`,
-  );
-}
-if (!Number.isInteger(n)) {
-  throw new Error(`Parameter "${nParam}" is not a whole number`);
-}
-
-console.log(nParam);
-
 const geometry = new THREE.BoxGeometry(1, 1, 1);
 const material = new THREE.MeshStandardMaterial({
   color: 0x00aaff,
@@ -46,7 +52,7 @@ function randomRange(max: number) {
 }
 
 const spread = Math.cbrt(n) * 2;
-const meshArray: Array<THREE.Mesh> = new Array();
+const meshArray: Mesh[] = new Array();
 
 for (let i = 0; i < n; i++) {
   const cube = new THREE.Mesh(geometry, material);
@@ -62,7 +68,8 @@ for (let i = 0; i < n; i++) {
 
 camera.position.z = spread * 3.5;
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = await getRenderer(arm);
+console.log(nParam, renderer);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 app.appendChild(renderer.domElement);
