@@ -23,6 +23,24 @@ if (arm !== "A" && arm !== "B" && arm !== "C") {
 }
 
 const seed = Number(params.get("seed") ?? 67);
+
+if (Number.isNaN(seed)) {
+  throw new Error(`Your seed is NaN did you pass a string?`);
+}
+
+if (!Number.isInteger(seed)) {
+  throw new Error(
+    `Your seed ${seed} is supposed to be an integer. Floats are not allowed.`,
+  );
+}
+
+const MAX_SEED = 2 ** 32 - 1;
+if (seed > MAX_SEED) {
+  throw new Error(
+    `Your seed ${seed} is a value bigger than ${MAX_SEED} and would secretly cause duplicate seeds. Aborting. (Choose a smaller number)`,
+  );
+}
+
 const deterministicRandom = mulberry32(seed);
 
 const { THREE, getRenderer } =
