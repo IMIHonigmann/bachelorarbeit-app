@@ -58,6 +58,9 @@ function randomRange(max: number) {
 const spread = Math.cbrt(n) * 2;
 const meshArray: Mesh[] = new Array();
 
+const fingerPrintArray = new Float64Array(n * 6);
+let offset = 0;
+
 for (let i = 0; i < n; i++) {
   const cube = new THREE.Mesh(geometry, material);
   cube.position.x = randomRange(spread);
@@ -66,9 +69,21 @@ for (let i = 0; i < n; i++) {
   cube.rotation.x = randomRange(spread);
   cube.rotation.y = randomRange(spread);
   cube.rotation.z = randomRange(spread);
+
+  fingerPrintArray[offset + 0] = cube.position.x;
+  fingerPrintArray[offset + 1] = cube.position.y;
+  fingerPrintArray[offset + 2] = cube.position.z;
+  fingerPrintArray[offset + 3] = cube.rotation.x;
+  fingerPrintArray[offset + 4] = cube.rotation.y;
+  fingerPrintArray[offset + 5] = cube.rotation.z;
+  offset += 6;
+
   meshArray.push(cube);
   scene.add(cube);
 }
+
+const hashBuffer = await crypto.subtle.digest("SHA-256", fingerPrintArray);
+const hash = new Uint8Array(hashBuffer).toHex();
 
 camera.position.z = spread * 3.5;
 
@@ -128,6 +143,10 @@ renderer.setAnimationLoop((time) => {
       frame: summarize(frameMs),
       cpu: summarize(cpuMs),
       drawCalls: renderer.info.render.calls,
+      randomness: {
+        seed: seed,
+        fingerprint: hash,
+      },
     });
   }
 });
