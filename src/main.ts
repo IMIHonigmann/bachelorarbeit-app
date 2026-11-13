@@ -1,5 +1,6 @@
 import type { Mesh } from "three";
 import "./style.css";
+import { mulberry32 } from "./deterministic-random";
 
 const params = new URLSearchParams(window.location.search);
 const nParam = params.get("n") ?? 1000;
@@ -20,6 +21,9 @@ const arm = params.get("arm") ?? "C";
 if (arm !== "A" && arm !== "B" && arm !== "C") {
   throw new Error(`${arm} is not a valid arm`);
 }
+
+const seed = Number(params.get("seed") ?? 67);
+const deterministicRandom = mulberry32(seed);
 
 const { THREE, getRenderer } =
   arm == "A" ? await import("./arms/classic") : await import("./arms/wgpu");
@@ -48,7 +52,7 @@ const material = new THREE.MeshStandardMaterial({
 });
 
 function randomRange(max: number) {
-  return Math.random() * max * 2 - max;
+  return deterministicRandom() * max * 2 - max;
 }
 
 const spread = Math.cbrt(n) * 2;
