@@ -118,7 +118,7 @@ const hash = new Uint8Array(hashBuffer).toHex();
 
 camera.position.z = spread * 3.5;
 
-const { renderer, api } = await getRenderer(arm);
+const { renderer, api, gpuInfo } = await getRenderer(arm);
 console.log(nParam, renderer);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -166,6 +166,7 @@ renderer.setAnimationLoop((time) => {
     frameMs[frame - WARMUP] = deltaSeconds * 1000;
     cpuMs[frame - WARMUP] = cpuEnd - cpuStart;
   }
+
   frame++;
 
   let screenshotDataURL;
@@ -184,8 +185,7 @@ renderer.setAnimationLoop((time) => {
       environment: {
         api: api,
         gpuInfo: {
-          vendor: "ngreedia",
-          architecture: "shenanigans",
+          description: gpuInfo,
           userAgent: navigator.userAgent,
         },
       },

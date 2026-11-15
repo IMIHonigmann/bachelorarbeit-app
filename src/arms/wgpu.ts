@@ -21,14 +21,26 @@ async function getRenderer(arm: "A" | "B" | "C") {
     );
   }
 
-  const adapter = await navigator.gpu.requestAdapter();
-  console.log(
-    adapter?.info.vendor,
-    adapter?.info.architecture,
-    adapter?.info.isFallbackAdapter,
-  );
+  let gpuInfo;
+  if (api === "webgl2") {
+    const gl = renderer.getContext() as WebGL2RenderingContext;
+    const ext = gl.getExtension("WEBGL_debug_renderer_info");
+    const gpu = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : "unknown";
+    console.log(gpu);
+    gpuInfo = gpu;
+  }
+  if (api === "webgpu") {
+    const adapter = await navigator.gpu.requestAdapter();
+    console.log([
+      adapter?.info.vendor,
+      adapter?.info.architecture,
+      adapter?.info.isFallbackAdapter,
+      adapter?.info.description ?? null, // wgpu dev features must be enabled
+    ]);
+    gpuInfo = adapter?.info.description;
+  }
 
-  return { renderer, api };
+  return { renderer, api, gpuInfo };
 }
 
 export { getRenderer, THREE };
