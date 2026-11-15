@@ -56,8 +56,10 @@ document.addEventListener("visibilitychange", () => {
   );
 });
 
+const moduleStart = performance.now();
 const { THREE, getRenderer } =
   arm == "A" ? await import("./arms/classic") : await import("./arms/wgpu");
+const moduleLoad = performance.now() - moduleStart;
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -65,6 +67,7 @@ if (!app) {
   throw new Error("App root element #app not found");
 }
 
+const sceneBuildStart = performance.now();
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
@@ -112,13 +115,17 @@ for (let i = 0; i < n; i++) {
   meshArray.push(cube);
   scene.add(cube);
 }
+const sceneBuildTime = performance.now() - sceneBuildStart;
 
 const hashBuffer = await crypto.subtle.digest("SHA-256", fingerPrintArray);
 const hash = new Uint8Array(hashBuffer).toHex();
 
 camera.position.z = spread * 3.5;
 
+const rendererInitStart = performance.now();
 const { renderer, api, gpuInfo } = await getRenderer(arm);
+const rendererInitTime = performance.now() - rendererInitStart;
+
 console.log(nParam, renderer);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -147,6 +154,7 @@ function summarize(values: Float64Array) {
   return { mean, p50: at(0.5), p95: at(0.95), p99: at(0.99) };
 }
 
+let firstFrame = 0;
 renderer.setAnimationLoop((time) => {
   const cpuStart = performance.now();
   timer.update(time);
@@ -157,7 +165,12 @@ renderer.setAnimationLoop((time) => {
     meshArray[i].rotation.x += rotationStep;
     meshArray[i].rotation.y += rotationStep;
   }
+
+  const renderStart = performance.now();
   renderer.render(scene, camera);
+  if (frame === 0) {
+    firstFrame = performance.now() - renderStart;
+  }
 
   // measuring shenanigans
   const cpuEnd = performance.now();
@@ -177,6 +190,12 @@ renderer.setAnimationLoop((time) => {
 
   if (frame === WARMUP + SAMPLES) {
     window.__benchResult = {
+      startup: {
+        moduleLoad,
+        sceneBuildTime,
+        rendererInitTime,
+        firstFrame,
+      },
       config: {
         n,
         arm,
