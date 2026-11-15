@@ -196,19 +196,32 @@ renderer.setAnimationLoop((time) => {
         cpu: summarize(cpuMs),
       },
       frames: {
-        cpuMs,
-        frameMs,
+        cpuMs: Array.from(cpuMs),
+        frameMs: Array.from(frameMs),
       },
       drawCalls: renderer.info.render.calls,
       fingerprint: hash,
       date: Date.now(),
       valid: isRunValid,
       warnings: [isRunValid ? "" : "The window turned hidden during the run."],
-      screenshot: screenshotDataURL,
     };
+    downloadJson(window.__benchResult, `arm-${arm}_n-${n}_seed-${seed}.json`);
     console.log("Benchmark results have been written!");
   }
 });
+
+function downloadJson(data: unknown, filename: string) {
+  const blob = new Blob([JSON.stringify(data, null, 2)]);
+
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
 
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
