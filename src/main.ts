@@ -43,6 +43,19 @@ if (seed > MAX_SEED) {
 
 const deterministicRandom = mulberry32(seed);
 
+let isRunValid = !document.hidden;
+console.log(
+  `Note: Don't switch tabs now for valid results. \n Run is currently considered ${isRunValid ? "valid" : "invalid"}`,
+);
+
+document.addEventListener("visibilitychange", () => {
+  if (!isRunValid) return;
+  isRunValid = false;
+  console.log(
+    "WARNING: You hid the page and therefore the run will be considered invalid",
+  );
+});
+
 const { THREE, getRenderer } =
   arm == "A" ? await import("./arms/classic") : await import("./arms/wgpu");
 
@@ -105,7 +118,7 @@ const hash = new Uint8Array(hashBuffer).toHex();
 
 camera.position.z = spread * 3.5;
 
-const renderer = await getRenderer(arm);
+const { renderer, api } = await getRenderer(arm);
 console.log(nParam, renderer);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -155,17 +168,45 @@ renderer.setAnimationLoop((time) => {
   }
   frame++;
 
+  let screenshotDataURL;
+  if (frame === WARMUP + Math.floor(SAMPLES / 2)) {
+    // screenshot on certain frame
+    screenshotDataURL = renderer.domElement.toDataURL();
+  }
+
   if (frame === WARMUP + SAMPLES) {
-    console.log({
-      n,
-      frame: summarize(frameMs),
-      cpu: summarize(cpuMs),
-      drawCalls: renderer.info.render.calls,
-      randomness: {
-        seed: seed,
-        fingerprint: hash,
+    window.__benchResult = {
+      config: {
+        n,
+        arm,
+        seed,
       },
-    });
+      environment: {
+        api: api,
+        gpuInfo: {
+          vendor: "ngreedia",
+          architecture: "shenanigans",
+          userAgent: navigator.userAgent,
+        },
+      },
+      devicePixelRatio: window.devicePixelRatio,
+      resolution: { width: window.innerWidth, height: window.innerHeight },
+      summary: {
+        frame: summarize(frameMs),
+        cpu: summarize(cpuMs),
+      },
+      frames: {
+        cpuMs,
+        frameMs,
+      },
+      drawCalls: renderer.info.render.calls,
+      fingerprint: hash,
+      date: Date.now(),
+      valid: isRunValid,
+      warnings: [isRunValid ? "" : "The window turned hidden during the run."],
+      screenshot: screenshotDataURL,
+    };
+    console.log("Benchmark results have been written!");
   }
 });
 

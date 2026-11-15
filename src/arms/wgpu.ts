@@ -28,7 +28,7 @@ async function getRenderer(arm: "A" | "B" | "C") {
     adapter?.info.isFallbackAdapter,
   );
 
-  return renderer;
+  return { renderer, api };
 }
 
 export { getRenderer, THREE };

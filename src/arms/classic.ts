@@ -8,7 +8,7 @@ function getRenderer() {
 
   console.log(gpu);
 
-  return renderer;
+  return { renderer, api: "webgl2" as const };
 }
 
 export { getRenderer, THREE };
