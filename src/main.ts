@@ -41,6 +41,12 @@ if (seed > MAX_SEED) {
   );
 }
 
+const mode = params.get("mode");
+
+if (mode !== "noninstanced" && mode !== "instanced") {
+  throw new Error(`Your selected mode ${mode} is not a valid parameter.`);
+}
+
 const deterministicRandom = mulberry32(seed);
 
 let isRunValid = !document.hidden;
@@ -95,26 +101,69 @@ const meshArray: Mesh[] = new Array();
 const fingerPrintArray = new Float64Array(n * 6);
 let offset = 0;
 
-for (let i = 0; i < n; i++) {
-  const cube = new THREE.Mesh(geometry, material);
-  cube.position.x = randomRange(spread);
-  cube.position.y = randomRange(spread);
-  cube.position.z = randomRange(spread);
-  cube.rotation.x = randomRange(spread);
-  cube.rotation.y = randomRange(spread);
-  cube.rotation.z = randomRange(spread);
+function createNonInstancedSceneContent() {
+  for (let i = 0; i < n; i++) {
+    const cube = new THREE.Mesh(geometry, material);
+    cube.position.x = randomRange(spread);
+    cube.position.y = randomRange(spread);
+    cube.position.z = randomRange(spread);
+    cube.rotation.x = randomRange(spread);
+    cube.rotation.y = randomRange(spread);
+    cube.rotation.z = randomRange(spread);
 
-  fingerPrintArray[offset + 0] = cube.position.x;
-  fingerPrintArray[offset + 1] = cube.position.y;
-  fingerPrintArray[offset + 2] = cube.position.z;
-  fingerPrintArray[offset + 3] = cube.rotation.x;
-  fingerPrintArray[offset + 4] = cube.rotation.y;
-  fingerPrintArray[offset + 5] = cube.rotation.z;
-  offset += 6;
+    fingerPrintArray[offset + 0] = cube.position.x;
+    fingerPrintArray[offset + 1] = cube.position.y;
+    fingerPrintArray[offset + 2] = cube.position.z;
+    fingerPrintArray[offset + 3] = cube.rotation.x;
+    fingerPrintArray[offset + 4] = cube.rotation.y;
+    fingerPrintArray[offset + 5] = cube.rotation.z;
+    offset += 6;
 
-  meshArray.push(cube);
-  scene.add(cube);
+    meshArray.push(cube);
+    scene.add(cube);
+  }
 }
+
+const instancedCubes = new THREE.InstancedMesh(geometry, material, n);
+const instanceRotations = new Float64Array(n * 3);
+const instancePositions = new Float64Array(n * 3);
+
+function createInstancedSceneContent() {
+  const dummy = new THREE.Object3D();
+  const r = randomRange;
+
+  for (let i = 0; i < n; i++) {
+    dummy.position.set(r(spread), r(spread), r(spread));
+    dummy.rotation.set(r(spread), r(spread), r(spread));
+    dummy.updateMatrix();
+    instancedCubes.setMatrixAt(i, dummy.matrix);
+
+    instanceRotations.set(
+      [dummy.rotation.x, dummy.rotation.y, dummy.rotation.z],
+      i * 3,
+    );
+    instancePositions.set(
+      [dummy.position.x, dummy.position.y, dummy.position.z],
+      i * 3,
+    );
+
+    fingerPrintArray[offset + 0] = dummy.position.x;
+    fingerPrintArray[offset + 1] = dummy.position.y;
+    fingerPrintArray[offset + 2] = dummy.position.z;
+    fingerPrintArray[offset + 3] = dummy.rotation.x;
+    fingerPrintArray[offset + 4] = dummy.rotation.y;
+    fingerPrintArray[offset + 5] = dummy.rotation.z;
+    offset += 6;
+  }
+
+  instancedCubes.instanceMatrix.needsUpdate = true;
+  scene.add(instancedCubes);
+}
+
+mode === "noninstanced"
+  ? createNonInstancedSceneContent()
+  : createInstancedSceneContent();
+
 const sceneBuildTime = performance.now() - sceneBuildStart;
 
 const hashBuffer = await crypto.subtle.digest("SHA-256", fingerPrintArray);
@@ -160,11 +209,40 @@ renderer.setAnimationLoop((time) => {
   timer.update(time);
   const deltaSeconds = Math.max(0, timer.getDelta());
 
-  for (let i = 0; i < meshArray.length; i++) {
-    const rotationStep = 0.01;
-    meshArray[i].rotation.x += rotationStep;
-    meshArray[i].rotation.y += rotationStep;
+  const rotationStep = 0.01;
+
+  function rotateNonInstanced() {
+    for (let i = 0; i < meshArray.length; i++) {
+      meshArray[i].rotation.x += rotationStep;
+      meshArray[i].rotation.y += rotationStep;
+    }
   }
+
+  function rotateInstanced() {
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < n; i++) {
+      const j = i * 3;
+
+      instanceRotations[j] += rotationStep;
+      instanceRotations[j + 1] += rotationStep;
+
+      dummy.rotation.set(
+        instanceRotations[j],
+        instanceRotations[j + 1],
+        instanceRotations[j + 2],
+      );
+      dummy.position.set(
+        instancePositions[j],
+        instancePositions[j + 1],
+        instancePositions[j + 2],
+      );
+      dummy.updateMatrix();
+      instancedCubes.setMatrixAt(i, dummy.matrix);
+    }
+    instancedCubes.instanceMatrix.needsUpdate = true;
+  }
+
+  mode === "noninstanced" ? rotateNonInstanced() : rotateInstanced();
 
   const renderStart = performance.now();
   renderer.render(scene, camera);
@@ -224,8 +302,9 @@ renderer.setAnimationLoop((time) => {
       valid: isRunValid,
       warnings: [isRunValid ? "" : "The window turned hidden during the run."],
     };
-    downloadJson(window.__benchResult, `arm-${arm}_n-${n}_seed-${seed}.json`);
+    // downloadJson(window.__benchResult, `arm-${arm}_n-${n}_seed-${seed}.json`);
     console.log("Benchmark results have been written!");
+    console.log(window.__benchResult);
   }
 });
 
