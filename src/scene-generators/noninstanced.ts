@@ -33,3 +33,10 @@ export function createNonInstancedSceneContent(THREE: HybridThree) {
     scene.add(cube);
   }
 }
+
+export function rotateNonInstanced(rotationStep: number) {
+  for (let i = 0; i < meshArray.length; i++) {
+    meshArray[i].rotation.x += rotationStep;
+    meshArray[i].rotation.y += rotationStep;
+  }
+}

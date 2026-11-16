@@ -42,3 +42,26 @@ export function createInstancedSceneContent(THREE: HybridThree) {
   instancedCubes.instanceMatrix.needsUpdate = true;
   scene.add(instancedCubes);
 }
+
+export function rotateInstanced(rotationStep: number, THREE: HybridThree) {
+  const dummy = new THREE.Object3D();
+  for (let i = 0; i < n; i++) {
+    const j = i * 3;
+    instanceRotations[j] += rotationStep;
+    instanceRotations[j + 1] += rotationStep;
+
+    dummy.rotation.set(
+      instanceRotations[j],
+      instanceRotations[j + 1],
+      instanceRotations[j + 2],
+    );
+    dummy.position.set(
+      instancePositions[j],
+      instancePositions[j + 1],
+      instancePositions[j + 2],
+    );
+    dummy.updateMatrix();
+    instancedCubes.setMatrixAt(i, dummy.matrix);
+  }
+  instancedCubes.instanceMatrix.needsUpdate = true;
+}

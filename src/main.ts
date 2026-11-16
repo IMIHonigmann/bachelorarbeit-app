@@ -1,8 +1,14 @@
 import type { Mesh } from "three";
 import "./style.css";
 import { mulberry32 } from "./deterministic-random";
-import { createInstancedSceneContent } from "./scene-generators/instanced";
-import { createNonInstancedSceneContent } from "./scene-generators/noninstanced";
+import {
+  createInstancedSceneContent,
+  rotateInstanced,
+} from "./scene-generators/instanced";
+import {
+  createNonInstancedSceneContent,
+  rotateNonInstanced,
+} from "./scene-generators/noninstanced";
 
 const params = new URLSearchParams(window.location.search);
 const nParam = params.get("n") ?? 1000;
@@ -160,38 +166,9 @@ renderer.setAnimationLoop((time) => {
 
   const rotationStep = 0.01;
 
-  function rotateNonInstanced() {
-    for (let i = 0; i < meshArray.length; i++) {
-      meshArray[i].rotation.x += rotationStep;
-      meshArray[i].rotation.y += rotationStep;
-    }
-  }
-
-  function rotateInstanced() {
-    const dummy = new THREE.Object3D();
-    for (let i = 0; i < n; i++) {
-      const j = i * 3;
-
-      instanceRotations[j] += rotationStep;
-      instanceRotations[j + 1] += rotationStep;
-
-      dummy.rotation.set(
-        instanceRotations[j],
-        instanceRotations[j + 1],
-        instanceRotations[j + 2],
-      );
-      dummy.position.set(
-        instancePositions[j],
-        instancePositions[j + 1],
-        instancePositions[j + 2],
-      );
-      dummy.updateMatrix();
-      instancedCubes.setMatrixAt(i, dummy.matrix);
-    }
-    instancedCubes.instanceMatrix.needsUpdate = true;
-  }
-
-  mode === "noninstanced" ? rotateNonInstanced() : rotateInstanced();
+  mode === "noninstanced"
+    ? rotateNonInstanced(rotationStep)
+    : rotateInstanced(rotationStep, THREE);
 
   const renderStart = performance.now();
   renderer.render(scene, camera);
