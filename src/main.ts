@@ -1,10 +1,12 @@
 import type { Mesh } from "three";
 import "./style.css";
 import { mulberry32 } from "./deterministic-random";
+import { createInstancedSceneContent } from "./scene-generators/instanced";
+import { createNonInstancedSceneContent } from "./scene-generators/noninstanced";
 
 const params = new URLSearchParams(window.location.search);
 const nParam = params.get("n") ?? 1000;
-const n = Number(nParam);
+export const n = Number(nParam);
 if (Number.isNaN(n)) {
   throw new Error(`Parameter "${nParam}" is not a number`);
 }
@@ -67,6 +69,8 @@ const { THREE, getRenderer } =
   arm == "A" ? await import("./arms/classic") : await import("./arms/wgpu");
 const moduleLoad = performance.now() - moduleStart;
 
+export type HybridThree = typeof THREE;
+
 const app = document.querySelector<HTMLDivElement>("#app");
 
 if (!app) {
@@ -74,7 +78,7 @@ if (!app) {
 }
 
 const sceneBuildStart = performance.now();
-const scene = new THREE.Scene();
+export const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
 const camera = new THREE.PerspectiveCamera(
@@ -84,85 +88,30 @@ const camera = new THREE.PerspectiveCamera(
   1000,
 );
 
-const geometry = new THREE.BoxGeometry(1, 1, 1);
-const material = new THREE.MeshStandardMaterial({
+export const geometry = new THREE.BoxGeometry(1, 1, 1);
+export const material = new THREE.MeshStandardMaterial({
   color: 0x00aaff,
   roughness: 0.5,
   metalness: 0.2,
 });
 
-function randomRange(max: number) {
+export function randomRange(max: number) {
   return deterministicRandom() * max * 2 - max;
 }
 
-const spread = Math.cbrt(n) * 2;
-const meshArray: Mesh[] = new Array();
+export const spread = Math.cbrt(n) * 2;
+export const meshArray: Mesh[] = new Array();
 
-const fingerPrintArray = new Float64Array(n * 6);
-let offset = 0;
+export const fingerPrintArray = new Float64Array(n * 6);
+export let offset = 0;
 
-function createNonInstancedSceneContent() {
-  for (let i = 0; i < n; i++) {
-    const cube = new THREE.Mesh(geometry, material);
-    cube.position.x = randomRange(spread);
-    cube.position.y = randomRange(spread);
-    cube.position.z = randomRange(spread);
-    cube.rotation.x = randomRange(spread);
-    cube.rotation.y = randomRange(spread);
-    cube.rotation.z = randomRange(spread);
-
-    fingerPrintArray[offset + 0] = cube.position.x;
-    fingerPrintArray[offset + 1] = cube.position.y;
-    fingerPrintArray[offset + 2] = cube.position.z;
-    fingerPrintArray[offset + 3] = cube.rotation.x;
-    fingerPrintArray[offset + 4] = cube.rotation.y;
-    fingerPrintArray[offset + 5] = cube.rotation.z;
-    offset += 6;
-
-    meshArray.push(cube);
-    scene.add(cube);
-  }
-}
-
-const instancedCubes = new THREE.InstancedMesh(geometry, material, n);
-const instanceRotations = new Float64Array(n * 3);
-const instancePositions = new Float64Array(n * 3);
-
-function createInstancedSceneContent() {
-  const dummy = new THREE.Object3D();
-  const r = randomRange;
-
-  for (let i = 0; i < n; i++) {
-    dummy.position.set(r(spread), r(spread), r(spread));
-    dummy.rotation.set(r(spread), r(spread), r(spread));
-    dummy.updateMatrix();
-    instancedCubes.setMatrixAt(i, dummy.matrix);
-
-    instanceRotations.set(
-      [dummy.rotation.x, dummy.rotation.y, dummy.rotation.z],
-      i * 3,
-    );
-    instancePositions.set(
-      [dummy.position.x, dummy.position.y, dummy.position.z],
-      i * 3,
-    );
-
-    fingerPrintArray[offset + 0] = dummy.position.x;
-    fingerPrintArray[offset + 1] = dummy.position.y;
-    fingerPrintArray[offset + 2] = dummy.position.z;
-    fingerPrintArray[offset + 3] = dummy.rotation.x;
-    fingerPrintArray[offset + 4] = dummy.rotation.y;
-    fingerPrintArray[offset + 5] = dummy.rotation.z;
-    offset += 6;
-  }
-
-  instancedCubes.instanceMatrix.needsUpdate = true;
-  scene.add(instancedCubes);
-}
+export const instancedCubes = new THREE.InstancedMesh(geometry, material, n);
+export const instanceRotations = new Float64Array(n * 3);
+export const instancePositions = new Float64Array(n * 3);
 
 mode === "noninstanced"
-  ? createNonInstancedSceneContent()
-  : createInstancedSceneContent();
+  ? createNonInstancedSceneContent(THREE)
+  : createInstancedSceneContent(THREE);
 
 const sceneBuildTime = performance.now() - sceneBuildStart;
 
