@@ -267,6 +267,11 @@ renderer.setAnimationLoop((time) => {
   }
 
   if (frame === WARMUP + SAMPLES) {
+    const drawCalls =
+      api === "webgpu"
+        ? renderer.info.render.drawCalls
+        : renderer.info.render.calls;
+
     window.__benchResult = {
       startup: {
         moduleLoad,
@@ -275,6 +280,7 @@ renderer.setAnimationLoop((time) => {
         firstFrame,
       },
       config: {
+        mode,
         n,
         arm,
         seed,
@@ -296,7 +302,7 @@ renderer.setAnimationLoop((time) => {
         cpuMs: Array.from(cpuMs),
         frameMs: Array.from(frameMs),
       },
-      drawCalls: renderer.info.render.calls,
+      drawCalls: drawCalls,
       fingerprint: hash,
       date: Date.now(),
       valid: isRunValid,

@@ -1,5 +1,7 @@
 import * as THREE from "three/webgpu";
 
+export type Api = "webgl2" | "webgpu";
+
 async function getRenderer(arm: "A" | "B" | "C") {
   const renderer = new THREE.WebGPURenderer({
     forceWebGL: arm === "B",
@@ -8,7 +10,7 @@ async function getRenderer(arm: "A" | "B" | "C") {
 
   await renderer.init();
 
-  const api = "isWebGPUBackend" in renderer.backend ? "webgpu" : "webgl2";
+  const api: Api = "isWebGPUBackend" in renderer.backend ? "webgpu" : "webgl2";
 
   if (api === "webgl2" && arm === "C") {
     throw new Error(
