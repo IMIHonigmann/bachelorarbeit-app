@@ -3,7 +3,7 @@
     "target": "es2023",
     "module": "esnext",
     "lib": ["ES2024", "ESNext.TypedArrays", "DOM"],
-    "types": ["vite/client", "@webgpu/types"],
+    "types": ["vite/client", "@webgpu/types", "@types/bun"],
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
 
