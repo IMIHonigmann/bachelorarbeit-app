@@ -1,7 +1,11 @@
 import { chromium } from "playwright";
 import { build, preview } from "vite";
+import { shuffle } from "../helpers/shuffle";
 
-const nCountsToTest = [1000, 10_000] as const;
+const SEED = 67;
+const INSTANCED_N_FACTOR = 10;
+
+const nCountsToTest = [1000, 2500, 5000] as const;
 const armsToTest = ["A", "B", "C"] as const;
 const modes = ["instanced", "noninstanced"] as const;
 
@@ -31,49 +35,67 @@ try {
       "--disable-renderer-backgrounding",
       "--disable-background-timer-throttling",
       "--disable-gpu-vsync",
-      "--disable-framerate-limit",
+      "--disable-frame-rate-limit",
     ],
   });
 
+  type Combo = {
+    n: number;
+    arm: (typeof armsToTest)[number];
+    mode: (typeof modes)[number];
+  };
+  const combos: Combo[] = [];
+
+  for (let i_n = 0; i_n < nCountsToTest.length; i_n++) {
+    for (let i_arms = 0; i_arms < armsToTest.length; i_arms++) {
+      for (let i_modes = 0; i_modes < modes.length; i_modes++) {
+        const isInstancedCombo = modes[i_modes] === "instanced";
+        combos.push({
+          n: nCountsToTest[i_n] * (isInstancedCombo ? INSTANCED_N_FACTOR : 1),
+          arm: armsToTest[i_arms],
+          mode: modes[i_modes],
+        });
+      }
+    }
+  }
+
+  const shuffledCombo = shuffle<Combo>(combos, SEED);
+
   try {
-    for (let i_n = 0; i_n < nCountsToTest.length; i_n++) {
-      for (let i_arms = 0; i_arms < armsToTest.length; i_arms++) {
-        for (let i_modes = 0; i_modes < modes.length; i_modes++) {
-          const paramString = `arm=${armsToTest[i_arms]}&n=${nCountsToTest[i_n]}&mode=${modes[i_modes]}&seed=67`;
-          const fileName = `${paramString.replaceAll("=", "-").replaceAll("&", "_")}.json`;
+    for (let i = 0; i < shuffledCombo.length; i++) {
+      const paramString = `arm=${shuffledCombo[i].arm}&n=${shuffledCombo[i].n}&mode=${shuffledCombo[i].mode}&seed=${SEED}`;
+      const fileName = `${paramString.replaceAll("=", "-").replaceAll("&", "_")}.json`;
 
-          const page = await browser.newPage({
-            viewport: { width: 1280, height: 720 },
-          });
-          page.on("console", (msg) => console.log("[page]", msg.text()));
+      const page = await browser.newPage({
+        viewport: { width: 1280, height: 720 },
+      });
+      page.on("console", (msg) => console.log("[page]", msg.text()));
 
-          try {
-            await page.goto(`${baseUrl}?${paramString}`);
-            await page.waitForFunction(
-              () => window.__benchResult !== undefined,
-              null,
-              {
-                timeout: 60_000,
-              },
-            );
+      try {
+        await page.goto(`${baseUrl}?${paramString}`);
+        await page.waitForFunction(
+          () => window.__benchResult !== undefined,
+          null,
+          {
+            timeout: 60_000,
+          },
+        );
 
-            const result = await page.evaluate(() => window.__benchResult);
-            await Bun.write(
-              `results/raw/${currentGermanDate}/SUCCESSFUL/${fileName}`,
-              JSON.stringify(result, null, 2),
-            );
-            succeeded++;
-          } catch (e) {
-            failed++;
-            console.error(`Run failed: ${paramString}\n`, e);
-            await Bun.write(
-              `results/raw/${currentGermanDate}/ERRORED/${fileName}`,
-              JSON.stringify({ paramString, error: String(e) }, null, 2),
-            );
-          } finally {
-            await page.close();
-          }
-        }
+        const result = await page.evaluate(() => window.__benchResult);
+        await Bun.write(
+          `results/raw/${currentGermanDate}/SUCCESSFUL/${fileName}`,
+          JSON.stringify(result, null, 2),
+        );
+        succeeded++;
+      } catch (e) {
+        failed++;
+        console.error(`Run failed: ${paramString}\n`, e);
+        await Bun.write(
+          `results/raw/${currentGermanDate}/ERRORED/${fileName}`,
+          JSON.stringify({ paramString, error: String(e) }, null, 2),
+        );
+      } finally {
+        await page.close();
       }
     }
   } finally {
