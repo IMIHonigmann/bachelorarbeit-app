@@ -8,10 +8,17 @@ const baseUrl = server.resolvedUrls?.local[0];
 const browser = await chromium.launch({
   executablePath: "/usr/bin/chromium",
   headless: false,
-  args: ["--enable-webgpu-developer-features"],
+  args: [
+    "--enable-webgpu-developer-features",
+    "--disable-backgrounding-occluded-windows",
+    "--disable-renderer-backgrounding",
+    "--disable-background-timer-throttling",
+    "--disable-gpu-vsync",
+    "--disable-framerate-limit",
+  ],
 });
 
-const nCountsToTest = [1000, 10_000, 100_000] as const;
+const nCountsToTest = [1000, 10_000] as const;
 const armsToTest = ["A", "B", "C"] as const;
 const modes = ["instanced", "noninstanced"] as const;
 
@@ -36,8 +43,11 @@ for (let i_n = 0; i_n < nCountsToTest.length; i_n++) {
       );
 
       const result = await page.evaluate(() => window.__benchResult);
+      const currentGermanDate = new Date().toLocaleDateString("sv-SE", {
+        timeZone: "Europe/Berlin",
+      });
       await Bun.write(
-        `results/raw/${paramString.replace("&", "-")}.json`,
+        `results/raw/${currentGermanDate}/${paramString.replace("&", "-")}.json`,
         JSON.stringify(result, null, 2),
       );
 
