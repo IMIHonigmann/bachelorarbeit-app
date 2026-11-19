@@ -194,7 +194,7 @@ renderer.setAnimationLoop((time) => {
 
   if (frame === WARMUP + SAMPLES) {
     const drawCalls =
-      api === "webgpu"
+      "isWebGPURenderer" in renderer
         ? renderer.info.render.drawCalls
         : renderer.info.render.calls;
 
