@@ -76,6 +76,10 @@ try {
     warmup: true,
   });
   total = shuffledCombos.length;
+  await Bun.write(
+    `results/raw/${currentGermanDate}/${currentGermanTime}/plan.json`,
+    JSON.stringify(shuffledCombos, null, 2),
+  );
 
   try {
     for (let i = 0; i < shuffledCombos.length; i++) {
