@@ -10,7 +10,6 @@ const armsToTest = ["A", "B", "C"] as const;
 const modes = ["instanced", "noninstanced"] as const;
 const reps = [2, 3, 4];
 
-const iterations = nCounts.length * armsToTest.length * modes.length;
 const currentGermanTime = new Date().toLocaleTimeString("sv-SE", {
   timeZone: "Europe/Berlin",
 });
@@ -20,6 +19,7 @@ const currentGermanDate = new Date().toLocaleDateString("sv-SE", {
 
 let succeeded = 0;
 let failed = 0;
+let total = 0;
 
 await build();
 const server = await preview({ preview: { port: 4173, strictPort: true } });
@@ -30,18 +30,22 @@ try {
     throw new Error("Vite preview server did not report a local URL");
   }
 
-  const browser = await chromium.launch({
-    executablePath: "/usr/bin/chromium",
-    headless: false,
-    args: [
-      "--enable-webgpu-developer-features",
-      "--disable-backgrounding-occluded-windows",
-      "--disable-renderer-backgrounding",
-      "--disable-background-timer-throttling",
-      "--disable-gpu-vsync",
-      "--disable-frame-rate-limit",
-    ],
-  });
+  async function launchBrowser() {
+    return await chromium.launch({
+      executablePath: "/usr/bin/chromium",
+      headless: false,
+      args: [
+        "--enable-webgpu-developer-features",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
+        "--disable-background-timer-throttling",
+        "--disable-gpu-vsync",
+        "--disable-frame-rate-limit",
+      ],
+    });
+  }
+
+  let browser = await launchBrowser();
 
   type Combo = {
     n: number;
@@ -52,18 +56,12 @@ try {
   };
   const combos: Combo[] = [];
 
-  for (let i_modes = 0; i_modes < modes.length; i_modes++) {
-    for (let i_n = 0; i_n < nCounts.length; i_n++) {
-      for (let i_arms = 0; i_arms < armsToTest.length; i_arms++) {
-        for (let i_reps = 0; i_reps < reps.length; i_reps++) {
-          const curN = modes[i_modes] === "instanced" ? nInstCounts : nCounts;
-          combos.push({
-            n: curN[i_n],
-            arm: armsToTest[i_arms],
-            mode: modes[i_modes],
-            reps: reps[i_reps],
-            warmup: false,
-          });
+  for (const mode of modes) {
+    const nValues = mode === "instanced" ? nInstCounts : nCounts;
+    for (const n of nValues) {
+      for (const arm of armsToTest) {
+        for (const rep of reps) {
+          combos.push({ n, arm, mode, reps: rep, warmup: false });
         }
       }
     }
@@ -77,11 +75,15 @@ try {
     reps: 1,
     warmup: true,
   });
+  total = shuffledCombos.length;
 
   try {
     for (let i = 0; i < shuffledCombos.length; i++) {
-      const paramString = `${shuffledCombos[i].warmup ? "WARMUP-" : ""}arm=${shuffledCombos[i].arm}&n=${shuffledCombos[i].n}&mode=${shuffledCombos[i].mode}&seed=${SEED}`;
-      const fileName = `${paramString.replaceAll("=", "-").replaceAll("&", "_")}.json`;
+      const combo = shuffledCombos[i];
+      const paramString = `arm=${combo.arm}&n=${combo.n}&mode=${combo.mode}&seed=${SEED}`;
+      const fileName = `${combo.warmup ? "WARMUP-" : ""}${paramString.replaceAll("=", "-").replaceAll("&", "_")}_rep-${combo.reps}.json`;
+
+      browser = browser.isConnected() ? browser : await launchBrowser();
 
       const page = await browser.newPage({
         viewport: { width: 1280, height: 720 },
@@ -107,9 +109,20 @@ try {
       } catch (e) {
         failed++;
         console.error(`Run failed: ${paramString}\n`, e);
+        const consoleMessages = await page.consoleMessages();
         await Bun.write(
           `results/raw/${currentGermanDate}/${currentGermanTime}/ERRORED/${fileName}`,
-          JSON.stringify({ paramString, error: String(e) }, null, 2),
+          JSON.stringify(
+            {
+              paramString,
+              error: String(e),
+              timestamp: Date.now(),
+              pos: `${i} von ${shuffledCombos.length}`,
+              warnings: consoleMessages.slice(-20).map((msg) => msg.text()),
+            },
+            null,
+            2,
+          ),
         );
       } finally {
         await page.close();
@@ -122,4 +135,4 @@ try {
   await server.close();
 }
 
-console.log(`${succeeded} of ${iterations} runs succeeded, ${failed} failed.`);
+console.log(`${succeeded} of ${total} runs succeeded, ${failed} failed.`);
