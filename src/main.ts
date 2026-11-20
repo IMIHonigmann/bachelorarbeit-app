@@ -234,24 +234,10 @@ renderer.setAnimationLoop((time) => {
       valid: isRunValid,
       warnings: [isRunValid ? "" : "The window turned hidden during the run."],
     };
-    // downloadJson(window.__benchResult, `arm-${arm}_n-${n}_seed-${seed}.json`);
     console.log("Benchmark results have been written!");
     console.log(window.__benchResult);
   }
 });
-
-function downloadJson(data: unknown, filename: string) {
-  const blob = new Blob([JSON.stringify(data, null, 2)]);
-
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-
-  URL.revokeObjectURL(url);
-}
 
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
