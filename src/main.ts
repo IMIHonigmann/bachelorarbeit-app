@@ -9,6 +9,7 @@ import {
   createNonInstancedSceneContent,
   rotateNonInstanced,
 } from "./scene-generators/noninstanced";
+import { createParticleScene, moveParticles } from "./scene-generators/compute";
 
 const params = new URLSearchParams(window.location.search);
 const nParam = params.get("n") ?? 1000;
@@ -51,7 +52,7 @@ if (seed > MAX_SEED) {
 
 const mode = params.get("mode");
 
-if (mode !== "noninstanced" && mode !== "instanced") {
+if (mode !== "noninstanced" && mode !== "instanced" && mode !== "compute") {
   throw new Error(`Your selected mode ${mode} is not a valid parameter.`);
 }
 
@@ -115,9 +116,17 @@ export const instancedCubes = new THREE.InstancedMesh(geometry, material, n);
 export const instanceRotations = new Float64Array(n * 3);
 export const instancePositions = new Float64Array(n * 3);
 
-mode === "noninstanced"
-  ? createNonInstancedSceneContent(THREE)
-  : createInstancedSceneContent(THREE);
+switch (mode) {
+  case "noninstanced":
+    createNonInstancedSceneContent(THREE);
+    break;
+  case "instanced":
+    createInstancedSceneContent(THREE);
+    break;
+  case "compute":
+    createParticleScene(THREE);
+    break;
+}
 
 const sceneBuildTime = performance.now() - sceneBuildStart;
 
@@ -165,10 +174,19 @@ renderer.setAnimationLoop((time) => {
   const deltaSeconds = Math.max(0, timer.getDelta());
 
   const rotationStep = 0.01;
+  const gravity = -0.01;
 
-  mode === "noninstanced"
-    ? rotateNonInstanced(rotationStep)
-    : rotateInstanced(rotationStep, THREE);
+  switch (mode) {
+    case "noninstanced":
+      rotateNonInstanced(rotationStep);
+      break;
+    case "instanced":
+      rotateInstanced(rotationStep, THREE);
+      break;
+    case "compute":
+      moveParticles(gravity);
+      break;
+  }
 
   const renderStart = performance.now();
   renderer.render(scene, camera);
