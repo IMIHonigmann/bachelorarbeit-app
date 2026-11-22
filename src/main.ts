@@ -9,7 +9,15 @@ import {
   createNonInstancedSceneContent,
   rotateNonInstanced,
 } from "./scene-generators/noninstanced";
-import { createParticleScene, moveParticles } from "./scene-generators/compute";
+import {
+  createParticleScene_CPU,
+  moveParticles,
+} from "./scene-generators/compute/cpu-implementation";
+import {
+  createParticleScene_TSL,
+  moveParticles_TSL,
+} from "./scene-generators/compute/tsl-implementation";
+import type { WebGPURenderer } from "three/webgpu";
 
 const params = new URLSearchParams(window.location.search);
 const nParam = params.get("n") ?? 1000;
@@ -124,7 +132,7 @@ switch (mode) {
     createInstancedSceneContent(THREE);
     break;
   case "compute":
-    createParticleScene(THREE);
+    arm === "A" ? createParticleScene_CPU(THREE) : createParticleScene_TSL();
     break;
 }
 
@@ -184,7 +192,9 @@ renderer.setAnimationLoop((time) => {
       rotateInstanced(rotationStep, THREE);
       break;
     case "compute":
-      moveParticles(gravity);
+      arm === "A"
+        ? moveParticles(gravity)
+        : moveParticles_TSL(renderer as WebGPURenderer);
       break;
   }
 

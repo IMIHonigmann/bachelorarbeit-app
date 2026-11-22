@@ -1,9 +1,9 @@
-import { n, scene, randomRange, spread, type HybridThree } from "../main";
+import { n, scene, randomRange, spread, type HybridThree } from "../../main";
 
 let positionAttribute: InstanceType<HybridThree["BufferAttribute"]>;
 let velocities: Float32Array<ArrayBuffer>;
 
-export function createParticleScene(THREE: HybridThree) {
+export function createParticleScene_CPU(THREE: HybridThree) {
   const positions = new Float32Array(n * 3);
   velocities = new Float32Array(n);
 
