@@ -41,6 +41,8 @@ try {
         "--disable-background-timer-throttling",
         "--disable-gpu-vsync",
         "--disable-frame-rate-limit",
+        "--disable-component-extensions-with-background-pages",
+        "--disable-extensions",
       ],
     });
   }
