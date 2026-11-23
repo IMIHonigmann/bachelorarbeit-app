@@ -124,6 +124,10 @@ export const instancedCubes = new THREE.InstancedMesh(geometry, material, n);
 export const instanceRotations = new Float64Array(n * 3);
 export const instancePositions = new Float64Array(n * 3);
 
+const gravity = -0.01;
+const floorY = -30;
+const bounciness = 0.9;
+
 switch (mode) {
   case "noninstanced":
     createNonInstancedSceneContent(THREE);
@@ -132,7 +136,9 @@ switch (mode) {
     createInstancedSceneContent(THREE);
     break;
   case "compute":
-    arm === "A" ? createParticleScene_CPU(THREE) : createParticleScene_TSL();
+    arm === "A"
+      ? createParticleScene_CPU(THREE)
+      : createParticleScene_TSL(gravity, floorY, bounciness);
     break;
 }
 
@@ -182,7 +188,6 @@ renderer.setAnimationLoop((time) => {
   const deltaSeconds = Math.max(0, timer.getDelta());
 
   const rotationStep = 0.01;
-  const gravity = -0.01;
 
   switch (mode) {
     case "noninstanced":
@@ -193,7 +198,7 @@ renderer.setAnimationLoop((time) => {
       break;
     case "compute":
       arm === "A"
-        ? moveParticles(gravity)
+        ? moveParticles(gravity, floorY, bounciness)
         : moveParticles_TSL(renderer as WebGPURenderer);
       break;
   }

@@ -4,7 +4,11 @@ import { Fn, If, instancedArray, instanceIndex, uniform } from "three/tsl";
 
 let updateCompute: THREE.ComputeNode;
 
-export function createParticleScene_TSL() {
+export function createParticleScene_TSL(
+  param_gravity: number,
+  param_floorY: number,
+  param_bounciness: number,
+) {
   const startPositions = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) {
     startPositions[i * 3 + 0] = randomRange(spread);
@@ -15,9 +19,9 @@ export function createParticleScene_TSL() {
   const positions = instancedArray(startPositions, "vec3");
   const velocities = instancedArray(n, "float");
 
-  const gravity = uniform(-0.01);
-  const floorY = uniform(-30);
-  const bounciness = uniform(0.9);
+  const gravity = uniform(param_gravity);
+  const floorY = uniform(param_floorY);
+  const bounciness = uniform(param_bounciness);
 
   updateCompute = Fn(() => {
     const position = positions.element(instanceIndex);

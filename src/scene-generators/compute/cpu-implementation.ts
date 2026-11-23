@@ -28,16 +28,18 @@ export function createParticleScene_CPU(THREE: HybridThree) {
   scene.add(points);
 }
 
-export function moveParticles(step: number) {
-  const floorPosY = -30;
+export function moveParticles(
+  gravity: number,
+  floorY: number,
+  bounciness: number,
+) {
   const positions = positionAttribute.array;
-  const BOUNCINESS = 0.9;
   for (let i = 0; i < n; i++) {
-    velocities[i] += step;
+    velocities[i] += gravity;
     positions[i * 3 + 1] += velocities[i];
-    if (positions[i * 3 + 1] < floorPosY) {
-      positions[i * 3 + 1] = floorPosY;
-      velocities[i] = -velocities[i] * BOUNCINESS;
+    if (positions[i * 3 + 1] < floorY) {
+      positions[i * 3 + 1] = floorY;
+      velocities[i] = -velocities[i] * bounciness;
     }
   }
   positionAttribute.needsUpdate = true;
