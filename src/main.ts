@@ -1,4 +1,4 @@
-import type { Mesh } from "three";
+import type { Mesh, WebGLRenderer } from "three";
 import "./style.css";
 import { mulberry32 } from "./deterministic-random";
 import {
@@ -18,6 +18,12 @@ import {
   moveParticles_TSL,
 } from "./scene-generators/compute/tsl-implementation";
 import type { WebGPURenderer } from "three/webgpu";
+import {
+  createPostScene_GL,
+  type PostParams,
+} from "./scene-generators/postprocessing/classic";
+import { createPostScene_WGPU } from "./scene-generators/postprocessing/wgpu";
+import type { EffectComposer } from "three/examples/jsm/Addons.js";
 
 const params = new URLSearchParams(window.location.search);
 const nParam = params.get("n") ?? 1000;
@@ -60,7 +66,12 @@ if (seed > MAX_SEED) {
 
 const mode = params.get("mode");
 
-if (mode !== "noninstanced" && mode !== "instanced" && mode !== "compute") {
+if (
+  mode !== "noninstanced" &&
+  mode !== "instanced" &&
+  mode !== "compute" &&
+  mode !== "postprocessing"
+) {
   throw new Error(`Your selected mode ${mode} is not a valid parameter.`);
 }
 
@@ -92,6 +103,19 @@ if (!app) {
   throw new Error("App root element #app not found");
 }
 
+export function randomRange(max: number) {
+  return deterministicRandom() * max * 2 - max;
+}
+
+const rendererInitStart = performance.now();
+const { renderer, api, gpuInfo } = await getRenderer(arm);
+const rendererInitTime = performance.now() - rendererInitStart;
+
+console.log(nParam, renderer);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+app.appendChild(renderer.domElement);
+
 const sceneBuildStart = performance.now();
 export const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
@@ -109,10 +133,13 @@ export const material = new THREE.MeshStandardMaterial({
   roughness: 0.5,
   metalness: 0.2,
 });
-
-export function randomRange(max: number) {
-  return deterministicRandom() * max * 2 - max;
-}
+export const emMat = new THREE.MeshStandardMaterial({
+  color: 0x00aaff,
+  roughness: 0.5,
+  metalness: 0.2,
+  emissive: 0xff4400,
+  emissiveIntensity: 2,
+});
 
 export const spread = Math.cbrt(n) * 2;
 export const meshArray: Mesh[] = new Array();
@@ -120,13 +147,24 @@ export const meshArray: Mesh[] = new Array();
 export const fingerPrintArray = new Float64Array(n * 6);
 export let offset = 0;
 
-export const instancedCubes = new THREE.InstancedMesh(geometry, material, n);
+export const instancedCubes = new THREE.InstancedMesh(
+  geometry,
+  material,
+  n - Math.floor(n / 8),
+);
+export const instancedCubesEm = new THREE.InstancedMesh(
+  geometry,
+  emMat,
+  Math.floor(n / 8),
+);
 export const instanceRotations = new Float64Array(n * 3);
 export const instancePositions = new Float64Array(n * 3);
 
 const gravity = -0.01;
 const floorY = -30;
 const bounciness = 0.9;
+
+let composer: EffectComposer;
 
 switch (mode) {
   case "noninstanced":
@@ -140,6 +178,23 @@ switch (mode) {
       ? createParticleScene_CPU(THREE)
       : createParticleScene_TSL(gravity, floorY, bounciness);
     break;
+  case "postprocessing":
+    const postParams: PostParams = {
+      threshold: 0.75,
+      strength: 1,
+      radius: 0.8,
+    };
+    createInstancedSceneContent(THREE);
+    arm === "A"
+      ? (composer = await createPostScene_GL(
+          renderer as WebGLRenderer,
+          scene,
+          camera,
+          postParams,
+        ))
+      : createPostScene_WGPU();
+
+    break;
 }
 
 const sceneBuildTime = performance.now() - sceneBuildStart;
@@ -148,15 +203,6 @@ const hashBuffer = await crypto.subtle.digest("SHA-256", fingerPrintArray);
 const hash = new Uint8Array(hashBuffer).toHex();
 
 camera.position.z = spread * 3.5;
-
-const rendererInitStart = performance.now();
-const { renderer, api, gpuInfo } = await getRenderer(arm);
-const rendererInitTime = performance.now() - rendererInitStart;
-
-console.log(nParam, renderer);
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-app.appendChild(renderer.domElement);
 
 const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
 scene.add(ambientLight);
@@ -201,10 +247,15 @@ renderer.setAnimationLoop((time) => {
         ? moveParticles(gravity, floorY, bounciness)
         : moveParticles_TSL(renderer as WebGPURenderer);
       break;
+    case "postprocessing":
+      rotateInstanced(rotationStep, THREE);
+      break;
   }
 
   const renderStart = performance.now();
-  renderer.render(scene, camera);
+  mode === "postprocessing" && arm === "A"
+    ? composer.render()
+    : renderer.render(scene, camera);
   if (frame === 0) {
     firstFrame = performance.now() - renderStart;
   }
