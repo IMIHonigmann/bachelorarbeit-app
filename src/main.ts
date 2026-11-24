@@ -1,4 +1,4 @@
-import type { Mesh, WebGLRenderer } from "three";
+import { WebGLRenderer, type Mesh } from "three";
 import "./style.css";
 import { mulberry32 } from "./deterministic-random";
 import {
@@ -17,13 +17,13 @@ import {
   createParticleScene_TSL,
   moveParticles_TSL,
 } from "./scene-generators/compute/tsl-implementation";
-import type { WebGPURenderer } from "three/webgpu";
-import {
-  createPostScene_GL,
-  type PostParams,
-} from "./scene-generators/postprocessing/classic";
+import { WebGPURenderer } from "three/webgpu";
+import { createPostScene_GL } from "./scene-generators/postprocessing/classic";
+import type {
+  PostParams,
+  PostProcessor,
+} from "./scene-generators/postprocessing/types";
 import { createPostScene_WGPU } from "./scene-generators/postprocessing/wgpu";
-import type { EffectComposer } from "three/examples/jsm/Addons.js";
 
 const params = new URLSearchParams(window.location.search);
 const nParam = params.get("n") ?? 1000;
@@ -149,7 +149,7 @@ export let offset = 0;
 
 export const instancedCubes = new THREE.InstancedMesh(
   geometry,
-  material,
+  emMat,
   n - Math.floor(n / 8),
 );
 export const instancedCubesEm = new THREE.InstancedMesh(
@@ -164,7 +164,7 @@ const gravity = -0.01;
 const floorY = -30;
 const bounciness = 0.9;
 
-let composer: EffectComposer;
+let post: PostProcessor | null = null;
 
 switch (mode) {
   case "noninstanced":
@@ -184,15 +184,22 @@ switch (mode) {
       strength: 1,
       radius: 0.8,
     };
+    const common = {
+      scene,
+      camera,
+      postParams,
+    };
     createInstancedSceneContent(THREE);
-    arm === "A"
-      ? (composer = await createPostScene_GL(
-          renderer as WebGLRenderer,
-          scene,
-          camera,
-          postParams,
-        ))
-      : createPostScene_WGPU();
+    post =
+      arm === "A"
+        ? createPostScene_GL({
+            ...common,
+            renderer: renderer as WebGLRenderer,
+          })
+        : createPostScene_WGPU({
+            ...common,
+            renderer: renderer as WebGPURenderer,
+          });
 
     break;
 }
@@ -253,9 +260,8 @@ renderer.setAnimationLoop((time) => {
   }
 
   const renderStart = performance.now();
-  mode === "postprocessing" && arm === "A"
-    ? composer.render()
-    : renderer.render(scene, camera);
+  if (post) post.render();
+  else renderer.render(scene, camera);
   if (frame === 0) {
     firstFrame = performance.now() - renderStart;
   }
